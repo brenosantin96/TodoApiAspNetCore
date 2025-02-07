@@ -1,0 +1,21 @@
+".gitignore" 
+
+# Ignora arquivos de build e binários
+bin/
+obj/
+
+# Ignora arquivos de configuração local
+appsettings.Development.json
+
+# Ignora arquivos de usuário do Visual Studio
+.vs/
+*.user
+*.suo
+
+# Ignora pastas de dependências
+.nuget/
+packages/
+
+# Ignora arquivos de log e temporários
+*.log
+*.tmp
