@@ -2,6 +2,7 @@
 using ApiBreno01.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Build.Framework;
+using Microsoft.EntityFrameworkCore;
 using Task = ApiBreno01.Models.Task;
 
 namespace ApiBreno01.Controllers
@@ -38,6 +39,21 @@ namespace ApiBreno01.Controllers
             return Ok(tasks);
 
         }
+
+        [HttpGet("user/{userId}/tasks")]
+        public IActionResult GetTasksByUser(int userId)
+        {
+            var user = _context.Users.Include(u => u.Tasks)
+                .FirstOrDefault(u => u.Id == userId);
+
+
+            if (user == null) {
+                return BadRequest(new { message = "User not found." });
+            }
+
+            return Ok(user.Tasks);
+        }
+
         [HttpGet("GetTaskById/{id}")]
         public IActionResult getById(int id)
         {
@@ -53,6 +69,8 @@ namespace ApiBreno01.Controllers
         [HttpPost]
         public IActionResult CreateTask([FromBody] Task task)
         {
+
+            
             if (task == null)
             {
                 return BadRequest(new { message = "Task cannot be null." });
@@ -60,8 +78,23 @@ namespace ApiBreno01.Controllers
 
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState); // Retorna os erros de validação
+                return BadRequest(ModelState); // validation errors
             }
+
+            // Verifica se o usuário existe
+            var user = _context.Users.FirstOrDefault(u => u.Id == task.UserId);
+            if (user == null)
+            {
+                return BadRequest(new { message = "User not found." });
+            }
+
+            if (task.IsFinished == true && task.DateFinished == null)
+            {
+                return BadRequest(new {message = "Task cant be finished without a DateFinished"}); 
+            }
+
+            task.DateCreated = DateTime.Now;
+
 
             _context.Tasks.Add(task);
             _context.SaveChanges();
@@ -83,6 +116,11 @@ namespace ApiBreno01.Controllers
                 return BadRequest(new { message = "Task data cannot be null." });
             }
 
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState); // Retorna os erros de validação
+            }
+
             var taskItem = _context.Tasks.FirstOrDefault(t => t.Id == id);
             if (taskItem == null)
             {
@@ -96,14 +134,29 @@ namespace ApiBreno01.Controllers
                     taskItem.Name = task.Name;
                 }
 
-                if (task.IsFinished != null) // Se IsFinished for um campo opcional
+                if (task.DateToFinish != null)
                 {
-                    taskItem.IsFinished = task.IsFinished;
+                    taskItem.DateToFinish = task.DateToFinish;
                 }
 
-                _context.Tasks.Update(taskItem);
+                if (task.IsFinished)
+                {
+                    taskItem.IsFinished = true;
+                    if (taskItem.DateFinished == null)
+                    {
+                        taskItem.DateFinished = DateTime.Now; // Define a data de conclusão se não for fornecida
+                    }
+                }
+                else
+                {
+                    taskItem.IsFinished = false;
+                    taskItem.DateFinished = null; // Limpa a data de conclusão se a tarefa não estiver concluída
+                }
+
+                
                 _context.SaveChanges();
-                return Ok(taskItem);
+
+                return Ok(new { message = "Task updated successfully.", task = taskItem });
             }
             catch (Exception ex)
             {
